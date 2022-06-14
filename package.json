@@ -1,0 +1,14 @@
+{
+	"name": "c-ruby",
+	"version": "1.0.0",
+	"main": "index.js",
+	"license": "MIT",
+	"scripts": {
+		"dev:parse": "syntax-cli -g src/crb.spec.bnf -m LALR1 -f",
+		"build:parser": "syntax-cli -g src/crb.spec.bnf -m LALR1 -o lib/crb.parser.js",
+		"transpile": "node lib/index.js"
+	},
+	"devDependencies": {
+		"syntax-cli": "^0.1.25"
+	}
+}

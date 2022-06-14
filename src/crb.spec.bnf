@@ -1,0 +1,264 @@
+%lex
+%%
+
+'fn'     		return 'KW_FN'
+'do'			return 'KW_DO'
+'end'			return 'KW_END'
+'true'			return 'KW_TRUE'
+'false'			return 'KW_FALSE'
+'import'		return 'KW_IMPORT'
+'object'		return 'KW_OBJECT'
+'return'		return 'KW_RETURN'
+'const'			return 'KW_CONST'
+
+'('				return 'TOK_LPAREN'
+')'				return 'TOK_RPAREN'
+'->'			return 'TOK_ARROW'
+
+'<'				return 'TOK_LT'
+'>'				return 'TOK_GT'
+'+'				return 'TOK_PLUS'
+'-'				return 'TOK_MINUS'
+'='				return 'TOK_EQUAL'
+[\*]$			return 'TOK_STAR'
+'/'				return 'TOK_SLASH'
+
+':'				return 'TOK_COLON'
+';'				return 'TOK_SEMI'
+',' 			return 'TOK_COMMA'
+
+[ \t]			/* skip whitespace */
+
+\"[^\"]+\"		return 'STRING' /* " */
+(\n|\r\n)		return 'EOL'
+[a-zA-Z]+\.h	return 'IMPORT_ID'
+\*?[a-zA-Z_]+	return 'IDENTIFIER'
+[0-9]+			return 'INTEGER'
+.				/* */
+
+/lex
+
+%%
+
+Program
+	: ProgramBody {
+			$$ = {
+				type: 'Program',
+				body: $1,
+			}
+		}
+	;
+
+ProgramBody
+	: ProgramBody Statement {$$ = [...$1, $2]}
+	| Statement {$$ = [$1]}
+	;
+
+
+DeclarationStatement
+	: FunctionDeclaration
+	| ImportDeclaration
+	| VariableDeclaration
+	;
+
+FunctionDeclaration
+	: KW_FN Identifier TOK_ARROW Identifier KW_DO EOL BlockStatement KW_END {
+			$$ = {
+				type: 'FunctionDeclaration',
+				id: $2,
+				params: [],
+				returnType: $4,
+				body: {
+					type: 'BlockStatement',
+					body: $7,
+				},
+			}
+		}
+	| KW_FN Identifier Arguments TOK_ARROW Identifier KW_DO EOL BlockStatement KW_END {
+			$$ = {
+				type: 'FunctionDeclaration',
+				id: $2,
+				params: $3,
+				returnType: $5,
+				body: {
+					type: 'BlockStatement',
+					body: $8,
+				},
+			}
+		}
+	;
+
+Arguments
+	: TOK_LPAREN TOK_RPAREN {$$ = []}
+	| TOK_LPAREN ArgumentList TOK_RPAREN {$$ = $2}
+	;
+
+ArgumentList
+	: ArgumentList TOK_COMMA Argument {$$ = [...$1, $3]}
+	| Argument {$$ = [$1]}
+	;
+
+Argument
+	: Identifier
+	| Identifier TOK_COLON Identifier {
+			$$ = { type: 'Identifier', name: $1, typing: $3 }
+		}
+	;
+
+Parameters
+	: Parameters TOK_COMMA Parameter {$$ = [...$1, $3]}
+	| Parameter {$$ = [$1]}
+	| {$$ = []}
+	;
+
+Parameter
+	: Literal
+	| Identifier
+	;
+
+BlockStatement
+	: BlockStatement Statement {$$ = [...$1, $2]}
+	| Statement {$$ = [$1]}
+	;
+
+Statement
+	: ImportStatement
+	| ReturnStatement
+	| DeclarationStatement
+	| Expression
+	| Empty
+	;
+
+ImportDeclaration
+	: KW_IMPORT ImportIdentifier EOL {
+			$$ = {
+				type: 'ImportDeclaration',
+				source: $2,
+			}
+		}
+	;
+
+VariableDeclaration
+	: Identifier TOK_COLON Identifier TOK_EQUAL Expression {
+			$$ = {
+				type: 'VariableDeclaration',
+				mutable: true,
+				id: $1,
+				typing: $3,
+				value: $5,
+			}
+		}
+	| KW_CONST Identifier TOK_COLON Identifier TOK_EQUAL Expression {
+			$$ = {
+				type: 'VariableDeclaration',
+				mutable: false,
+				id: $2,
+				typing: $4,
+				value: $6,
+			}
+		}
+	;
+
+ReturnStatement
+	: KW_RETURN Expression EOL {
+			$$ = {
+				type: 'ReturnStatement',
+				argument: $2,
+			}
+		}
+	;
+
+ImportIdentifier
+	: TOK_LT IMPORT_ID TOK_GT {
+			$$ = {
+				type: 'Literal',
+				std: true,
+				value: $2,
+			}
+		}
+	| StringLiteral {
+			$$ = {
+				...$1,
+				std: false,
+			}
+		}
+	;
+
+Expression
+	: CallExpression
+	| BinaryExpression
+	| Literal
+	;
+
+CallExpression
+	: Identifier TOK_LPAREN Parameters TOK_RPAREN {
+			$$ = {
+				type: 'CallExpression',
+				callee: $1,
+				arguments: $3,
+			}
+		}
+	;
+
+BinaryExpression
+	: AdditiveExpression
+	;
+
+AdditiveExpression
+	: Term AdditiveOperator Term {
+			$$ = {
+				type: 'BinaryExpression',
+				op: $2,
+				left: $1,
+				right: $3,
+			}
+		}
+	;
+
+AdditiveOperator
+	: TOK_PLUS
+	| TOK_MINUS
+	;
+
+Term
+	: Identifier
+	| Literal
+	;
+
+Identifier
+	: IDENTIFIER {
+			$$ = {
+				type: 'Identifier',
+				name: $1,
+			}
+		}
+	;
+
+Literal
+	: IntegerLiteral
+	| StringLiteral
+	;
+
+IntegerLiteral
+	: INTEGER {
+			$$ = {
+				type: 'Literal',
+				typing: 'int',
+				value: Number($1),
+			}
+		}
+	;
+
+StringLiteral
+	: STRING {
+			$$ = {
+				type: 'Literal',
+				typing: '*char',
+				value: $1,
+			}
+		}
+	;
+
+Empty
+	: EOL {$$ = null}
+	;

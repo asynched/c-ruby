@@ -1,0 +1,18 @@
+import <stdio.h>
+import <stdlib.h>
+
+fn say_hello(name: *char) -> void do
+	printf("Hello, %s!\n", name)
+end
+
+fn print_person(name: *char, age: int) -> void do
+	printf("Person<name=%s, age=%d>\n", name, age)
+end
+
+fn main -> int do
+	name: *char = "Eder"
+	age: int = 20
+	say_hello(name)
+	print_person(name, age)
+	return 0
+end
